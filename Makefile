@@ -1,5 +1,5 @@
 TIMESTAMP?=$(shell date +'%Y%m%d%H%M%S')
-DOCKER_TAG?=jaytwo_throttledtasks
+DOCKER_TAG?=jaytwo_dareencryption
 
 default: clean build
 
@@ -15,17 +15,17 @@ restore:
 	dotnet restore . --verbosity minimal
   
 build: restore
-	dotnet build ./jaytwo.ThrottledTasks.sln
+	dotnet build ./jaytwo.DareEncryption.sln
 
 test: unit-test
   
 unit-test: build
 	rm -rf out/testResults
 	rm -rf out/coverage
-	cd ./test/jaytwo.ThrottledTasks.Tests; \
+	cd ./test/jaytwo.DareEncryption.Tests; \
 		dotnet test \
 		--results-directory ../../out/testResults \
-		--logger "trx;LogFileName=jaytwo.ThrottledTasks.Tests.trx"
+		--logger "trx;LogFileName=jaytwo.DareEncryption.Tests.trx"
 	reportgenerator \
 		-reports:./out/coverage/**/coverage.cobertura.xml \
 		-targetdir:./out/coverage/ \
@@ -37,7 +37,7 @@ unit-test: build
 
 pack:
 	rm -rf out/packed
-	cd ./src/jaytwo.ThrottledTasks; \
+	cd ./src/jaytwo.DareEncryption; \
 		dotnet pack -o ../../out/packed ${PACK_ARG}
 
 pack-beta: PACK_ARG=--version-suffix beta-${TIMESTAMP}
@@ -45,7 +45,7 @@ pack-beta: pack
 
 publish:
 	rm -rf out/published
-	cd ./src/jaytwo.ThrottledTasks; \
+	cd ./src/jaytwo.DareEncryption; \
 		dotnet publish -o ../../out/published
 
 DOCKER_BASE_TAG?=${DOCKER_TAG}__base
