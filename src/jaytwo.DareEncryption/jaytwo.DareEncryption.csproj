@@ -1,51 +1,33 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.1</TargetFrameworks>
+    <TargetFrameworks>net8.0;net6.0;netstandard2.1</TargetFrameworks>
     <VersionPrefix>0.1.0</VersionPrefix>
+    <Description>DARE (Data At Rest Encryption) for .NET, mostly compatible with MinIO sio (AES-GCM / DARE 2.0).</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <RepositoryUrl>https://github.com/jakegough/jaytwo.DareEncryption.git</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/jakegough-jaytwo/jaytwo.DareEncryption</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/jakegough-jaytwo/jaytwo.DareEncryption</RepositoryUrl>
+    <PackageTags>dare;encryption;aes-gcm;minio;sio;at-rest;jaytwo</PackageTags>
     <RepositoryType>git</RepositoryType>
-    <LangVersion>8</LangVersion>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
-  <!--
-    // https://docs.microsoft.com/en-us/dotnet/standard/frameworks
-    // preprocessor symbols for free:
-    //    NETFRAMEWORK, NET45,
-    //    NETSTANDARD, NETSTANDARD1_1, NETSTANDARD1_3, NETSTANDARD1_6, NETSTANDARD2_0, NETSTANDARD2_1
-  -->
+  <!-- SourceLink: step-into support and a symbols package. The .NET 8+ SDK supplies the GitHub provider. -->
+  <PropertyGroup>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
 
-  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
-    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="1.1.1" />
+  <ItemGroup>
+    <InternalsVisibleTo Include="jaytwo.DareEncryption.Tests" />
+    <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
+    <None Include="..\..\README.md" Pack="true" PackagePath="" Link="README.md" />
   </ItemGroup>
+
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.1'">
     <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="1.1.1" />
   </ItemGroup>
-
-  <!-- sourcelink (only needed on the published package project) -->
-  <ItemGroup>
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
-  </ItemGroup>
-
-  <PropertyGroup>
-    <IncludeSymbols>true</IncludeSymbols>
-    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <PublishRepositoryUrl>true</PublishRepositoryUrl>
-  </PropertyGroup>
-  <!-- /sourcelink -->
-
-  <!-- stylecop -->
-  <ItemGroup>
-    <PackageReference Include="StyleCop.Analyzers" Version="1.1.118" PrivateAssets="All" />
-    <PackageReference Include="StyleCop.Analyzers.Error" Version="1.0.2" PrivateAssets="All" />
-    <AdditionalFiles Include="$(ProjectDir)..\..\stylecop.json" Link="stylecop.json" />
-  </ItemGroup>
-  <PropertyGroup>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <StyleCopTreatErrorsAsWarnings>true</StyleCopTreatErrorsAsWarnings>
-    <CodeAnalysisRuleSet>$(ProjectDir)..\..\stylecop.ruleset</CodeAnalysisRuleSet>
-  </PropertyGroup>
-  <!-- /stylecop -->
 
 </Project>

@@ -15,7 +15,7 @@ namespace jaytwo.DareEncryption
         }
 
         // see also: https://github.com/golang/crypto/blob/master/hkdf/hkdf.go#L90-L93
-        public static byte[] ComputeHkdfHash(byte[] secret, byte[] salt, byte[] info = null)
+        public static byte[] ComputeHkdfHash(byte[] secret, byte[] salt, byte[]? info = null)
         {
             var pseudoRandomKey = Extract(secret, salt);
             return Expand(pseudoRandomKey, info, HashLength);
@@ -27,7 +27,7 @@ namespace jaytwo.DareEncryption
         }
 
         // https://gist.github.com/charlesportwoodii/09ffd6868c2a6e55826c4d5ebb509651
-        private static byte[] Expand(byte[] prk, byte[] info, int outputLength)
+        private static byte[] Expand(byte[] prk, byte[]? info, int outputLength)
         {
             info = info ?? Array.Empty<byte>();
             var result = new byte[outputLength];
