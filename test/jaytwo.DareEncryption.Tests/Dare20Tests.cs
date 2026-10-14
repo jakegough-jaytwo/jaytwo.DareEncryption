@@ -30,7 +30,7 @@ namespace jaytwo.DareEncryption.Tests
         [InlineData("sample1600.jpg", "sample1600.goencrypted.b64.txt")] // ~264k from https://picsum.photos/1600 => https://i.picsum.photos/id/609/1600/1600.jpg?hmac=0cht5MptVevAAhJf9VsPO-OvtRJ3bnOk9owUbAVsO9Q
         public async Task CanDecryptFilesEncryptedWithGoLang(string plainEmbeddedResourceName, string encryptedEmbeddedResourceName)
         {
-            // package length in DARE is 665536b, so anything over 65k needs multiple packages
+            // package length in DARE is 65536 bytes, so anything over 65k needs multiple packages
 
             // Arrange
             var plainBytes = await GetEmbeddedResourceBytesAsync("jaytwo.DareEncryption.Tests.EmbeddedResources." + plainEmbeddedResourceName);
@@ -472,7 +472,8 @@ func StreamToByte(stream io.Reader) []byte {
 
         private async Task<byte[]> GetEmbeddedResourceBytesAsync(string resourceName)
         {
-            using (var stream = GetType().Assembly.GetManifestResourceStream(resourceName))
+            using (var stream = GetType().Assembly.GetManifestResourceStream(resourceName)
+                ?? throw new InvalidOperationException($"Embedded resource not found: {resourceName}"))
             using (var memoryStream = new MemoryStream())
             {
                 await stream.CopyToAsync(memoryStream);

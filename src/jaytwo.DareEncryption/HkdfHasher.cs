@@ -1,13 +1,13 @@
 using System;
-using System.Collections.Generic;
 using System.Security.Cryptography;
-using System.Text;
 
 namespace jaytwo.DareEncryption
 {
     public class HkdfHasher
     {
-        public static byte[] GenerateDoubheHashedKey(byte[] secret, byte[] salt, byte[] nonce)
+        private const int HashLength = 32;
+
+        public static byte[] GenerateDoubleHashedKey(byte[] secret, byte[] salt, byte[] nonce)
         {
             var firstPass = ComputeHkdfHash(secret, salt);
             var secondPass = ComputeHkdfHash(firstPass, nonce);
@@ -18,33 +18,60 @@ namespace jaytwo.DareEncryption
         public static byte[] ComputeHkdfHash(byte[] secret, byte[] salt, byte[] info = null)
         {
             var pseudoRandomKey = Extract(secret, salt);
-            var result = Expand(pseudoRandomKey, info, 32);
-            return result;
+            return Expand(pseudoRandomKey, info, HashLength);
         }
 
-        private static byte[] Extract(byte[] ikv, byte[] salt)
+        private static byte[] Extract(byte[] ikm, byte[] salt)
         {
-            return Hash(salt, ikv);
+            return Hash(salt, ikm);
         }
 
         // https://gist.github.com/charlesportwoodii/09ffd6868c2a6e55826c4d5ebb509651
         private static byte[] Expand(byte[] prk, byte[] info, int outputLength)
         {
-            var resultBlock = new byte[0];
+            info = info ?? Array.Empty<byte>();
             var result = new byte[outputLength];
-            var bytesRemaining = outputLength;
 
-            info = info ?? new byte[] { };
+            // T(0) is empty; each round is HMAC(PRK, T(i-1) || info || counter).
+            // For SHA-256 / 32-byte output this is a single round.
+            Span<byte> previous = stackalloc byte[HashLength];
+            int previousLength = 0;
+            int offset = 0;
+            byte counter = 1;
+            int maxMessageLength = HashLength + info.Length + 1;
+            Span<byte> messageBuffer = maxMessageLength <= 64
+                ? stackalloc byte[maxMessageLength]
+                : new byte[maxMessageLength];
 
-            for (int i = 1; bytesRemaining > 0; i++)
+            using (var hmac = new HMACSHA256(prk))
             {
-                var currentInfo = new byte[resultBlock.Length + info.Length + 1];
-                Array.Copy(resultBlock, 0, currentInfo, 0, resultBlock.Length);
-                Array.Copy(info, 0, currentInfo, resultBlock.Length, info.Length);
-                currentInfo[currentInfo.Length - 1] = (byte)i;
-                resultBlock = Hash(prk, currentInfo);
-                Array.Copy(resultBlock, 0, result, outputLength - bytesRemaining, Math.Min(resultBlock.Length, bytesRemaining));
-                bytesRemaining -= resultBlock.Length;
+                while (offset < outputLength)
+                {
+                    int messageLength = previousLength + info.Length + 1;
+                    Span<byte> message = messageBuffer.Slice(0, messageLength);
+
+                    if (previousLength > 0)
+                    {
+                        previous.Slice(0, previousLength).CopyTo(message);
+                    }
+
+                    if (info.Length > 0)
+                    {
+                        info.CopyTo(message.Slice(previousLength));
+                    }
+
+                    message[messageLength - 1] = counter++;
+
+                    if (!hmac.TryComputeHash(message.Slice(0, messageLength), previous, out previousLength)
+                        || previousLength != HashLength)
+                    {
+                        throw new CryptographicException("HKDF expand failed.");
+                    }
+
+                    int toCopy = Math.Min(previousLength, outputLength - offset);
+                    previous.Slice(0, toCopy).CopyTo(result.AsSpan(offset));
+                    offset += toCopy;
+                }
             }
 
             return result;

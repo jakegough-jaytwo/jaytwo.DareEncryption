@@ -11,7 +11,7 @@ namespace jaytwo.DareEncryption.Tests
     public class HkdfHasherTests
     {
         [Fact]
-        public void GenerateDoubheHashedKeyWorks()
+        public void GenerateDoubleHashedKeyWorks()
         {
             // Arrange
             var expectedKey = Convert.FromBase64String("qgiRsHMXSllgbqvFFYGVwYNYph2rlZAFf7XzHag1DuY=");
@@ -20,7 +20,7 @@ namespace jaytwo.DareEncryption.Tests
             var nonceBytes = Encoding.UTF8.GetBytes("banana");
 
             // Act
-            var generatedKey = HkdfHasher.GenerateDoubheHashedKey(passphraseBytes, saltBytes, nonceBytes);
+            var generatedKey = HkdfHasher.GenerateDoubleHashedKey(passphraseBytes, saltBytes, nonceBytes);
 
             // Assert
             Assert.Equal(expectedKey, generatedKey);

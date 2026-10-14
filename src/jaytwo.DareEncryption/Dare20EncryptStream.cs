@@ -1,15 +1,43 @@
-using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
-using System.Text;
 
 namespace jaytwo.DareEncryption
 {
     public class Dare20EncryptStream : CryptoStream
     {
+        public Dare20EncryptStream(Stream baseStream, byte[] secret, byte[] salt, byte[] nonce, CryptoStreamMode mode)
+            : base(baseStream, new Dare20EncryptTransform(HkdfHasher.GenerateDoubleHashedKey(secret, salt, nonce)), mode)
+        {
+        }
+
+        public Dare20EncryptStream(Stream baseStream, byte[] secret, byte[] salt, CryptoStreamMode mode)
+            : base(baseStream, new Dare20EncryptTransform(HkdfHasher.ComputeHkdfHash(secret, salt)), mode)
+        {
+        }
+
+        public Dare20EncryptStream(Stream baseStream, byte[] key, CryptoStreamMode mode)
+            : base(baseStream, new Dare20EncryptTransform(key), mode)
+        {
+        }
+
+        public Dare20EncryptStream(Stream baseStream, byte[] secret, byte[] salt, byte[] nonce, CryptoStreamMode mode, bool leaveOpen)
+            : base(baseStream, new Dare20EncryptTransform(HkdfHasher.GenerateDoubleHashedKey(secret, salt, nonce)), mode, leaveOpen)
+        {
+        }
+
+        public Dare20EncryptStream(Stream baseStream, byte[] secret, byte[] salt, CryptoStreamMode mode, bool leaveOpen)
+            : base(baseStream, new Dare20EncryptTransform(HkdfHasher.ComputeHkdfHash(secret, salt)), mode, leaveOpen)
+        {
+        }
+
+        public Dare20EncryptStream(Stream baseStream, byte[] key, CryptoStreamMode mode, bool leaveOpen)
+            : base(baseStream, new Dare20EncryptTransform(key), mode, leaveOpen)
+        {
+        }
+
+        // baseStreamLength is retained for API compatibility; finalization is EOF-based and ignores it.
         public Dare20EncryptStream(Stream baseStream, long baseStreamLength, byte[] secret, byte[] salt, byte[] nonce, CryptoStreamMode mode)
-            : base(baseStream, new Dare20EncryptTransform(HkdfHasher.GenerateDoubheHashedKey(secret, salt, nonce), baseStreamLength), mode)
+            : base(baseStream, new Dare20EncryptTransform(HkdfHasher.GenerateDoubleHashedKey(secret, salt, nonce), baseStreamLength), mode)
         {
         }
 
@@ -24,7 +52,7 @@ namespace jaytwo.DareEncryption
         }
 
         public Dare20EncryptStream(Stream baseStream, long baseStreamLength, byte[] secret, byte[] salt, byte[] nonce, CryptoStreamMode mode, bool leaveOpen)
-            : base(baseStream, new Dare20EncryptTransform(HkdfHasher.GenerateDoubheHashedKey(secret, salt, nonce), baseStreamLength), mode, leaveOpen)
+            : base(baseStream, new Dare20EncryptTransform(HkdfHasher.GenerateDoubleHashedKey(secret, salt, nonce), baseStreamLength), mode, leaveOpen)
         {
         }
 
@@ -35,6 +63,16 @@ namespace jaytwo.DareEncryption
 
         public Dare20EncryptStream(Stream baseStream, long baseStreamLength, byte[] key, CryptoStreamMode mode, bool leaveOpen)
             : base(baseStream, new Dare20EncryptTransform(key, baseStreamLength), mode, leaveOpen)
+        {
+        }
+
+        internal Dare20EncryptStream(Stream baseStream, byte[] key, IRandomBytesGenerator nonceGenerator, CryptoStreamMode mode)
+            : base(baseStream, new Dare20EncryptTransform(key, nonceGenerator), mode)
+        {
+        }
+
+        internal Dare20EncryptStream(Stream baseStream, byte[] key, IRandomBytesGenerator nonceGenerator, CryptoStreamMode mode, bool leaveOpen)
+            : base(baseStream, new Dare20EncryptTransform(key, nonceGenerator), mode, leaveOpen)
         {
         }
 

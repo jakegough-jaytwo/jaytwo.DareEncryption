@@ -3,10 +3,7 @@
 #pragma warning disable SA1206 // Declaration keywords must follow order
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
+using System.Buffers.Binary;
 
 namespace jaytwo.DareEncryption
 {
@@ -63,9 +60,9 @@ func (h headerV20) SetRand(randVal []byte, final bool) {
 
         public void SetCipher() { _h[1] = Dare20.CipherSuiteAes256Gcm; }
 
-        public int Length => BitConverter.ToUInt16(_h.Slice(start: 2, length: 2)) + 1;
+        public int Length => BinaryPrimitives.ReadUInt16LittleEndian(_h.Slice(start: 2, length: 2)) + 1;
 
-        public void SetLength(int length) { BitConverter.GetBytes((ushort)(length - 1)).CopyTo(_h.Slice(start: 2, length: 2)); }
+        public void SetLength(int length) { BinaryPrimitives.WriteUInt16LittleEndian(_h.Slice(start: 2, length: 2), (ushort)(length - 1)); }
 
         public bool IsFinal => (_h[4] & 0x80) == 0x80;
 
@@ -73,9 +70,9 @@ func (h headerV20) SetRand(randVal []byte, final bool) {
 
         public Span<byte> AddData => _h.Slice(start: 0, length: 4);
 
-        public void SetRand(byte[] randVal, bool final)
+        public void SetRand(ReadOnlySpan<byte> randVal, bool final)
         {
-            randVal.CopyTo(_h.Slice(start: 4, length: 12));
+            randVal.Slice(0, 12).CopyTo(_h.Slice(start: 4, length: 12));
 
             if (final)
             {

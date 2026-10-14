@@ -9,7 +9,7 @@ namespace jaytwo.DareEncryption
     public class Dare20DecryptStream : CryptoStream
     {
         public Dare20DecryptStream(Stream baseStream, byte[] secret, byte[] salt, byte[] nonce, CryptoStreamMode mode)
-            : base(baseStream, new Dare20DecryptTransform(HkdfHasher.GenerateDoubheHashedKey(secret, salt, nonce)), mode)
+            : base(baseStream, new Dare20DecryptTransform(HkdfHasher.GenerateDoubleHashedKey(secret, salt, nonce)), mode)
         {
         }
 
@@ -24,7 +24,7 @@ namespace jaytwo.DareEncryption
         }
 
         public Dare20DecryptStream(Stream baseStream, byte[] secret, byte[] salt, byte[] nonce, CryptoStreamMode mode, bool leaveOpen)
-            : base(baseStream, new Dare20DecryptTransform(HkdfHasher.GenerateDoubheHashedKey(secret, salt, nonce)), mode, leaveOpen)
+            : base(baseStream, new Dare20DecryptTransform(HkdfHasher.GenerateDoubleHashedKey(secret, salt, nonce)), mode, leaveOpen)
         {
         }
 

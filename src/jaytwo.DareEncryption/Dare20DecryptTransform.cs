@@ -1,18 +1,16 @@
 using System;
-using System.Collections.Generic;
 using System.Security.Cryptography;
-using System.Text;
 
 namespace jaytwo.DareEncryption
 {
     public class Dare20DecryptTransform : ICryptoTransform
     {
         private readonly AesGcm _cipher;
-        private uint _packageIndex = 0;
+        private readonly Dare20DecryptState _state = new Dare20DecryptState();
 
         public Dare20DecryptTransform(byte[] key)
         {
-            _cipher = new AesGcm(key);
+            _cipher = Dare20.CreateAesGcm(key);
         }
 
         public bool CanReuseTransform => false;
@@ -30,16 +28,12 @@ namespace jaytwo.DareEncryption
 
         public int TransformBlock(byte[] inputBuffer, int inputOffset, int inputCount, byte[] outputBuffer, int outputOffset)
         {
-            var result = Dare20.DecryptBlock(_cipher, _packageIndex, inputBuffer, inputOffset, inputCount, outputBuffer, outputOffset);
-            _packageIndex++;
-            return result;
+            return Dare20.DecryptBlock(_cipher, _state, inputBuffer, inputOffset, inputCount, outputBuffer, outputOffset);
         }
 
         public byte[] TransformFinalBlock(byte[] inputBuffer, int inputOffset, int inputCount)
         {
-            var result = Dare20.DecryptFinalBlock(_cipher, _packageIndex, inputBuffer, inputOffset, inputCount);
-            _packageIndex++;
-            return result;
+            return Dare20.DecryptFinalBlock(_cipher, _state, inputBuffer, inputOffset, inputCount);
         }
     }
 }
