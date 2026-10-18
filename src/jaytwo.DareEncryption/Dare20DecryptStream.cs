@@ -37,5 +37,35 @@ namespace jaytwo.DareEncryption
             : base(baseStream, new Dare20DecryptTransform(key), mode, leaveOpen)
         {
         }
+
+        public Dare20DecryptStream(Stream baseStream, byte[] key, uint sequenceNumber, bool requireFinalPackage, CryptoStreamMode mode)
+            : this(baseStream, key, sequenceNumber, requireFinalPackage, mode, leaveOpen: false)
+        {
+        }
+
+        public Dare20DecryptStream(Stream baseStream, byte[] key, uint sequenceNumber, bool requireFinalPackage, CryptoStreamMode mode, bool leaveOpen)
+            : base(baseStream, new Dare20DecryptTransform(key, sequenceNumber, requireFinalPackage), mode, leaveOpen)
+        {
+        }
+
+        public Dare20DecryptStream(Stream baseStream, byte[] secret, byte[] salt, uint sequenceNumber, bool requireFinalPackage, CryptoStreamMode mode)
+            : this(baseStream, secret, salt, sequenceNumber, requireFinalPackage, mode, leaveOpen: false)
+        {
+        }
+
+        public Dare20DecryptStream(Stream baseStream, byte[] secret, byte[] salt, uint sequenceNumber, bool requireFinalPackage, CryptoStreamMode mode, bool leaveOpen)
+            : base(baseStream, new Dare20DecryptTransform(HkdfHasher.ComputeHkdfHash(secret, salt), sequenceNumber, requireFinalPackage), mode, leaveOpen)
+        {
+        }
+
+        public Dare20DecryptStream(Stream baseStream, byte[] secret, byte[] salt, byte[] nonce, uint sequenceNumber, bool requireFinalPackage, CryptoStreamMode mode)
+            : this(baseStream, secret, salt, nonce, sequenceNumber, requireFinalPackage, mode, leaveOpen: false)
+        {
+        }
+
+        public Dare20DecryptStream(Stream baseStream, byte[] secret, byte[] salt, byte[] nonce, uint sequenceNumber, bool requireFinalPackage, CryptoStreamMode mode, bool leaveOpen)
+            : base(baseStream, new Dare20DecryptTransform(HkdfHasher.GenerateDoubleHashedKey(secret, salt, nonce), sequenceNumber, requireFinalPackage), mode, leaveOpen)
+        {
+        }
     }
 }

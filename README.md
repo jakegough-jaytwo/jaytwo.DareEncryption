@@ -121,6 +121,45 @@ public Stream GetDecryptedStream(Stream inputEncryptedStream, byte[] key)
 }
 ```
 
+### Plaintext byte ranges
+
+Object storage range reads return ciphertext. A plaintext range has to be widened to whole DARE packages, then decrypted from the package where that range starts.
+
+Non-final packages hold `Dare20.MaxPayloadLength` (65536) plaintext bytes and take `Dare20.MaxPackageLength` (65568) ciphertext bytes. The last package is the short one, and it is the only package marked final. `Dare20.GetByteRange` turns a plaintext offset and count into the ciphertext window to fetch. Pass the object content length (ciphertext size) so a range that reaches that last package is clamped, and so decryption requires the final package only when the window includes it. A count that runs past the plaintext end is shortened to what remains. An offset past that end throws `ArgumentOutOfRangeException`.
+
+`Dare20DecryptRangeStream` decrypts that window. The stream you pass in already starts at `range.CiphertextOffset`. The first byte it returns is `range.PlaintextOffset`, and it ends after `range.PlaintextLength` bytes. Closing the stream before the caller finishes reading does not fail the request; the packages already returned were authenticated.
+
+```csharp
+long cipherLength = objectMetadata.ContentLength;
+var range = Dare20.GetByteRange(plainOffset, plainCount, cipherLength);
+var plainLength = Dare20.GetDecryptedLength(cipherLength);
+
+Stream plainStream;
+if (range.PlaintextLength == 0)
+{
+    plainStream = Stream.Null;
+}
+else
+{
+    // S3 Range is inclusive. CiphertextInclusiveEnd is the last ciphertext byte to fetch.
+    Stream cipherWindow = await GetObjectRangeAsync(
+        bucket,
+        key,
+        range.CiphertextOffset,
+        range.CiphertextInclusiveEnd);
+    plainStream = new Dare20DecryptRangeStream(cipherWindow, encryptionKey, range);
+    // Content-Range: bytes {range.PlaintextOffset}-{range.PlaintextInclusiveEnd}/{plainLength}
+}
+```
+
+When the ciphertext is already a buffer, `DecryptRange` does the same mapping:
+
+```csharp
+var plainWindow = dare.DecryptRange(ciphertext, plainOffset, plainCount);
+```
+
+`range.SequenceNumber` is the zero-based index of the first package, which is the AES-GCM sequence for that package. `range.PlaintextOffsetInSequence` is the position of `range.PlaintextOffset` inside that package.
+
 ---
 
 Made with &hearts; by Jake

@@ -18,6 +18,7 @@ namespace jaytwo.DareEncryption
         public const int MinPayloadLength = 1;
         public const int MinPackageLength = MinPayloadLength + PackageOverheadLength;
         public const int MaxPackageLength = MaxPayloadLength + PackageOverheadLength;
+        internal const string CiphertextEndedBeforePlaintextRange = "Ciphertext ended before the requested plaintext range.";
 
         private readonly byte[] _key;
         private readonly IRandomBytesGenerator _randomBytesGenerator;
@@ -117,6 +118,19 @@ namespace jaytwo.DareEncryption
             return result;
         }
 
+        public static Dare20ByteRange GetByteRange(long plaintextOffset, long plaintextLength)
+            => CreateByteRange(plaintextOffset, plaintextLength, ciphertextLength: null);
+
+        public static Dare20ByteRange GetByteRange(long plaintextOffset, long plaintextLength, long ciphertextLength)
+        {
+            if (ciphertextLength < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(ciphertextLength));
+            }
+
+            return CreateByteRange(plaintextOffset, plaintextLength, ciphertextLength);
+        }
+
         public byte[] DecryptBytes(byte[] source)
             => DecryptBytes((ReadOnlySpan<byte>)source);
 
@@ -164,25 +178,42 @@ namespace jaytwo.DareEncryption
                 throw new ArgumentException("Destination is too short for the decrypted plaintext.", nameof(destination));
             }
 
-            int readPosition = 0;
-            int writePosition = 0;
-            var state = new Dare20DecryptState();
+            return DecryptPackages(source, destination, sequenceNumber: 0, requireFinalPackage: true);
+        }
 
-            using (var cipher = CreateAesGcm(_key))
+        public byte[] DecryptRange(byte[] ciphertext, long plaintextOffset, long plaintextLength)
+            => DecryptRange((ReadOnlySpan<byte>)ciphertext, plaintextOffset, plaintextLength);
+
+        public byte[] DecryptRange(ReadOnlySpan<byte> ciphertext, long plaintextOffset, long plaintextLength)
+        {
+            var range = GetByteRange(plaintextOffset, plaintextLength, ciphertext.Length);
+            if (range.PlaintextLength == 0)
             {
-                while (readPosition < source.Length)
-                {
-                    var sliceLength = Math.Min(source.Length - readPosition, MaxPackageLength);
-                    var package = source.Slice(readPosition, sliceLength);
-
-                    var plaintextLength = state.Open(cipher, package, destination.Slice(writePosition));
-                    readPosition += HeaderSize + TagSize + plaintextLength;
-                    writePosition += plaintextLength;
-                }
+                return Array.Empty<byte>();
             }
 
-            state.EnsureFinalized();
-            return writePosition;
+            var window = ciphertext.Slice((int)range.CiphertextOffset, (int)range.CiphertextLength);
+            int decryptedLength;
+            try
+            {
+                decryptedLength = GetDecryptedLength(window.Length);
+            }
+            catch (ArgumentException ex)
+            {
+                throw new CryptographicException("Invalid ciphertext length.", ex);
+            }
+
+            var packagePlaintext = new byte[decryptedLength];
+            var written = DecryptPackages(window, packagePlaintext, range.SequenceNumber, range.IncludesFinalPackage);
+            var outputLength = (int)range.PlaintextLength;
+            if (written < range.PlaintextOffsetInSequence + range.PlaintextLength)
+            {
+                throw new CryptographicException(CiphertextEndedBeforePlaintextRange);
+            }
+
+            var result = new byte[outputLength];
+            packagePlaintext.AsSpan(range.PlaintextOffsetInSequence, outputLength).CopyTo(result);
+            return result;
         }
 
         public byte[] EncryptBytes(byte[] source)
@@ -280,7 +311,7 @@ namespace jaytwo.DareEncryption
                 outputBuffer.AsSpan(outputOffset));
         }
 
-        internal static byte[] DecryptFinalBlock(AesGcm cipher, Dare20DecryptState state, byte[] inputBuffer, int inputOffset, int inputCount)
+        internal static byte[] DecryptFinalBlock(AesGcm cipher, Dare20DecryptState state, byte[] inputBuffer, int inputOffset, int inputCount, bool requireFinalPackage)
         {
             if (inputCount > 0)
             {
@@ -293,11 +324,19 @@ namespace jaytwo.DareEncryption
                 var plaintextLength = package.Length - HeaderSize - TagSize;
                 var result = new byte[plaintextLength];
                 state.Open(cipher, package, result);
-                state.EnsureFinalized();
+                if (requireFinalPackage)
+                {
+                    state.EnsureFinalized();
+                }
+
                 return result;
             }
 
-            state.EnsureFinalized();
+            if (requireFinalPackage)
+            {
+                state.EnsureFinalized();
+            }
+
             return Array.Empty<byte>();
         }
 
@@ -361,6 +400,113 @@ binary.LittleEndian.PutUint32(nonce[8:], binary.LittleEndian.Uint32(nonce[8:])^a
             cipher.Encrypt(nonce, payload, ciphertext, tag, header.AddData);
 
             return packageLength;
+        }
+
+        private static Dare20ByteRange CreateByteRange(long plaintextOffset, long plaintextLength, long? ciphertextLength)
+        {
+            if (plaintextOffset < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(plaintextOffset));
+            }
+
+            if (plaintextLength < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(plaintextLength));
+            }
+
+            if (plaintextLength > 0 && plaintextOffset > long.MaxValue - plaintextLength)
+            {
+                throw new ArgumentOutOfRangeException(nameof(plaintextLength));
+            }
+
+            if (ciphertextLength.HasValue)
+            {
+                long plaintextSize;
+                try
+                {
+                    plaintextSize = GetDecryptedLength(ciphertextLength.Value);
+                }
+                catch (ArgumentException ex)
+                {
+                    throw new ArgumentException(ex.Message, nameof(ciphertextLength), ex);
+                }
+
+                if (plaintextOffset > plaintextSize || (plaintextOffset == plaintextSize && plaintextLength > 0))
+                {
+                    throw new ArgumentOutOfRangeException(nameof(plaintextOffset));
+                }
+
+                var available = plaintextSize - plaintextOffset;
+                if (plaintextLength > available)
+                {
+                    plaintextLength = available;
+                }
+            }
+
+            if (plaintextLength == 0)
+            {
+                return new Dare20ByteRange(0, 0, 0, 0, 0, false, plaintextOffset);
+            }
+
+            var firstPackage = plaintextOffset / MaxPayloadLength;
+            var lastPackage = (plaintextOffset + plaintextLength - 1) / MaxPayloadLength;
+            if (firstPackage > uint.MaxValue || lastPackage > uint.MaxValue)
+            {
+                throw new ArgumentOutOfRangeException(nameof(plaintextOffset));
+            }
+
+            var ciphertextOffset = firstPackage * MaxPackageLength;
+            var ciphertextEnd = (lastPackage + 1) * MaxPackageLength;
+            var includesFinalPackage = false;
+            if (ciphertextLength.HasValue)
+            {
+                if (ciphertextOffset > ciphertextLength.Value)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(plaintextOffset));
+                }
+
+                if (ciphertextEnd >= ciphertextLength.Value)
+                {
+                    ciphertextEnd = ciphertextLength.Value;
+                    includesFinalPackage = true;
+                }
+            }
+
+            var plaintextOffsetInSequence = (int)(plaintextOffset % MaxPayloadLength);
+            return new Dare20ByteRange(
+                ciphertextOffset,
+                ciphertextEnd - ciphertextOffset,
+                (uint)firstPackage,
+                plaintextOffsetInSequence,
+                plaintextLength,
+                includesFinalPackage,
+                plaintextOffset);
+        }
+
+        private int DecryptPackages(ReadOnlySpan<byte> source, Span<byte> destination, uint sequenceNumber, bool requireFinalPackage)
+        {
+            int readPosition = 0;
+            int writePosition = 0;
+            var state = new Dare20DecryptState(sequenceNumber);
+
+            using (var cipher = CreateAesGcm(_key))
+            {
+                while (readPosition < source.Length)
+                {
+                    var sliceLength = Math.Min(source.Length - readPosition, MaxPackageLength);
+                    var package = source.Slice(readPosition, sliceLength);
+                    var plaintextLength = state.Open(cipher, package, destination.Slice(writePosition));
+                    readPosition += HeaderSize + TagSize + plaintextLength;
+                    writePosition += plaintextLength;
+                }
+            }
+
+            if (requireFinalPackage)
+            {
+                state.EnsureFinalized();
+            }
+
+            return writePosition;
         }
     }
 }

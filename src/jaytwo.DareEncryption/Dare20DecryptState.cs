@@ -9,6 +9,16 @@ namespace jaytwo.DareEncryption
         private readonly byte[] _refHeader = new byte[Dare20.HeaderSize];
         private bool _hasRefHeader;
 
+        public Dare20DecryptState()
+            : this(0)
+        {
+        }
+
+        public Dare20DecryptState(uint sequenceNumber)
+        {
+            SequenceNumber = sequenceNumber;
+        }
+
         public bool Finalized { get; private set; }
 
         public uint SequenceNumber { get; private set; }

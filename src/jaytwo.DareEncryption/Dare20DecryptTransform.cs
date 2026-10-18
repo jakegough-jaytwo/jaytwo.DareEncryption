@@ -6,11 +6,19 @@ namespace jaytwo.DareEncryption
     public class Dare20DecryptTransform : ICryptoTransform
     {
         private readonly AesGcm _cipher;
-        private readonly Dare20DecryptState _state = new Dare20DecryptState();
+        private readonly Dare20DecryptState _state;
+        private readonly bool _requireFinalPackage;
 
         public Dare20DecryptTransform(byte[] key)
+            : this(key, 0, true)
+        {
+        }
+
+        public Dare20DecryptTransform(byte[] key, uint sequenceNumber, bool requireFinalPackage)
         {
             _cipher = Dare20.CreateAesGcm(key);
+            _state = new Dare20DecryptState(sequenceNumber);
+            _requireFinalPackage = requireFinalPackage;
         }
 
         public bool CanReuseTransform => false;
@@ -33,7 +41,7 @@ namespace jaytwo.DareEncryption
 
         public byte[] TransformFinalBlock(byte[] inputBuffer, int inputOffset, int inputCount)
         {
-            return Dare20.DecryptFinalBlock(_cipher, _state, inputBuffer, inputOffset, inputCount);
+            return Dare20.DecryptFinalBlock(_cipher, _state, inputBuffer, inputOffset, inputCount, _requireFinalPackage);
         }
     }
 }
